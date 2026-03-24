@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Мессенджер | Регистрация и группы</title>
+<title>Мессенджер | Регистрация</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -85,6 +85,13 @@ body {
 
 .error-msg {
     color: #ff6b6b;
+    font-size: 12px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.success-msg {
+    color: #4caf50;
     font-size: 12px;
     margin-bottom: 10px;
     text-align: center;
@@ -342,9 +349,10 @@ body {
     <div class="auth-container">
         <h2 id="authTitle">Вход</h2>
         <div id="authError" class="error-msg"></div>
+        <div id="authSuccess" class="success-msg hidden"></div>
         <input type="text" id="authUsername" placeholder="Юзернейм (например: john)">
         <input type="password" id="authPassword" placeholder="Пароль">
-        <input type="text" id="authDisplayName" placeholder="Отображаемое имя (необязательно)" style="display: none;">
+        <input type="text" id="authDisplayName" placeholder="Отображаемое имя" style="display: none;">
         <button id="authSubmitBtn">Войти</button>
         <div id="authSwitch" class="auth-switch">Нет аккаунта? Зарегистрироваться</div>
     </div>
@@ -410,6 +418,7 @@ document.getElementById('authSwitch').onclick = () => {
         document.getElementById('authSwitch').textContent = 'Уже есть аккаунт? Войти';
     }
     document.getElementById('authError').textContent = '';
+    document.getElementById('authSuccess').classList.add('hidden');
 };
 
 document.getElementById('authSubmitBtn').onclick = async () => {
@@ -435,21 +444,37 @@ document.getElementById('authSubmitBtn').onclick = async () => {
         
         if (data.error) {
             document.getElementById('authError').textContent = data.error;
+            document.getElementById('authSuccess').classList.add('hidden');
         } else {
-            currentUser = data.user;
-            document.getElementById('authModal').classList.add('hidden');
-            document.getElementById('app').classList.remove('hidden');
-            document.getElementById('currentUserName').textContent = currentUser.displayName || currentUser.username;
-            document.getElementById('currentUserDisplay').textContent = `@${currentUser.username}`;
-            
-            socket.emit('auth', {
-                userId: currentUser.id,
-                username: currentUser.username,
-                displayName: currentUser.displayName || currentUser.username
-            });
+            if (isLoginMode) {
+                // Вход успешен
+                currentUser = data.user;
+                document.getElementById('authModal').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                document.getElementById('currentUserName').textContent = currentUser.displayName || currentUser.username;
+                document.getElementById('currentUserDisplay').textContent = `@${currentUser.username}`;
+                
+                socket.emit('auth', {
+                    userId: currentUser.id,
+                    username: currentUser.username,
+                    displayName: currentUser.displayName || currentUser.username
+                });
+            } else {
+                // Регистрация успешна, переключаем на вход
+                document.getElementById('authSuccess').textContent = 'Регистрация успешна! Теперь войдите.';
+                document.getElementById('authSuccess').classList.remove('hidden');
+                document.getElementById('authError').textContent = '';
+                // Переключаем на режим входа
+                isLoginMode = true;
+                document.getElementById('authTitle').textContent = 'Вход';
+                document.getElementById('authSubmitBtn').textContent = 'Войти';
+                document.getElementById('authDisplayName').style.display = 'none';
+                document.getElementById('authSwitch').textContent = 'Нет аккаунта? Зарегистрироваться';
+                document.getElementById('authPassword').value = '';
+            }
         }
     } catch (err) {
-        document.getElementById('authError').textContent = 'Ошибка соединения';
+        document.getElementById('authError').textContent = 'Ошибка соединения с сервером';
     }
 };
 
@@ -484,7 +509,6 @@ socket.on('rooms list', (rooms) => {
 });
 
 socket.on('group created', (room) => {
-    // Обновляем список
     socket.emit('join room', { roomId: room.id, userId: currentUser.id });
     currentRoomId = room.id;
     document.getElementById('messageInput').disabled = false;
