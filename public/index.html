@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Мессенджер | Чаты и история</title>
+<title>Мессенджер | Регистрация и группы</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -16,6 +16,85 @@ body {
     align-items: center;
 }
 
+/* Модальное окно входа/регистрации */
+.auth-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.auth-container {
+    background: #17212b;
+    padding: 30px;
+    border-radius: 16px;
+    width: 340px;
+}
+
+.auth-container h2 {
+    color: #fff;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.auth-container input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #1f2a36;
+    border: 1px solid #2b3b4a;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+}
+
+.auth-container button {
+    width: 100%;
+    padding: 12px;
+    background: #2b5278;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.auth-container button:hover {
+    background: #3e6a8c;
+}
+
+.auth-switch {
+    text-align: center;
+    color: #8e9eae;
+    cursor: pointer;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.auth-switch:hover {
+    color: #65b9f2;
+}
+
+.error-msg {
+    color: #ff6b6b;
+    font-size: 12px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Основной чат */
 .app {
     width: 95%;
     max-width: 1400px;
@@ -27,8 +106,8 @@ body {
     box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 
-/* Левая панель - чаты */
-.chats-panel {
+/* Левая панель */
+.sidebar {
     width: 280px;
     background: #1f2a36;
     border-right: 1px solid #2b3b4a;
@@ -53,20 +132,20 @@ body {
     margin-top: 5px;
 }
 
-.rooms-section {
+.groups-section {
     flex: 1;
     padding: 15px;
     overflow-y: auto;
 }
 
-.rooms-section h4 {
+.groups-section h4 {
     color: #8e9eae;
     font-size: 12px;
     text-transform: uppercase;
     margin-bottom: 12px;
 }
 
-.room-item {
+.group-item {
     padding: 10px 12px;
     margin-bottom: 5px;
     background: #2b3b4a;
@@ -78,26 +157,40 @@ body {
     align-items: center;
 }
 
-.room-item:hover {
+.group-item:hover {
     background: #3e5a6c;
 }
 
-.room-item.active {
+.group-item.active {
     background: #2b5278;
     border-left: 3px solid #65b9f2;
 }
 
-.room-name {
+.group-name {
     color: #fff;
     font-size: 14px;
 }
 
-.room-members {
+.group-members {
     color: #8e9eae;
     font-size: 11px;
 }
 
-.create-room {
+.delete-group {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 5px;
+    display: none;
+}
+
+.group-item:hover .delete-group {
+    display: block;
+}
+
+.create-group {
     margin: 10px;
     padding: 10px;
     background: #2b5278;
@@ -106,13 +199,46 @@ body {
     color: #fff;
     cursor: pointer;
     font-size: 14px;
+    width: calc(100% - 20px);
 }
 
-.create-room:hover {
+.create-group:hover {
     background: #3e6a8c;
 }
 
-/* Центральная панель - чат */
+.online-users {
+    padding: 15px;
+    border-top: 1px solid #2b3b4a;
+}
+
+.online-users h4 {
+    color: #8e9eae;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+#onlineList {
+    list-style: none;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+#onlineList li {
+    color: #8e9eae;
+    font-size: 13px;
+    padding: 5px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#onlineList li::before {
+    content: "●";
+    color: #4caf50;
+    font-size: 10px;
+}
+
+/* Центральный чат */
 .chat-panel {
     flex: 1;
     display: flex;
@@ -123,6 +249,9 @@ body {
     padding: 15px 20px;
     background: #1f2a36;
     border-bottom: 1px solid #2b3b4a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .chat-header h2 {
@@ -204,83 +333,51 @@ body {
     color: #fff;
     cursor: pointer;
 }
-
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: #17212b;
-    padding: 30px;
-    border-radius: 16px;
-    width: 320px;
-    text-align: center;
-}
-
-.modal-content input {
-    width: 100%;
-    padding: 12px;
-    margin: 15px 0;
-    background: #1f2a36;
-    border: 1px solid #2b3b4a;
-    border-radius: 8px;
-    color: #fff;
-}
-
-.modal-content button {
-    width: 100%;
-    padding: 12px;
-    background: #2b5278;
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    cursor: pointer;
-}
-
-.hidden {
-    display: none;
-}
 </style>
 </head>
 <body>
-<div id="loginModal" class="modal">
-    <div class="modal-content">
-        <h2>💬 Вход в мессенджер</h2>
-        <input type="text" id="usernameInput" placeholder="Ваше имя">
-        <button onclick="joinChat()">Войти</button>
+
+<!-- Модальное окно входа/регистрации -->
+<div id="authModal" class="auth-modal">
+    <div class="auth-container">
+        <h2 id="authTitle">Вход</h2>
+        <div id="authError" class="error-msg"></div>
+        <input type="text" id="authUsername" placeholder="Юзернейм (например: john)">
+        <input type="password" id="authPassword" placeholder="Пароль">
+        <input type="text" id="authDisplayName" placeholder="Отображаемое имя (необязательно)" style="display: none;">
+        <button id="authSubmitBtn">Войти</button>
+        <div id="authSwitch" class="auth-switch">Нет аккаунта? Зарегистрироваться</div>
     </div>
 </div>
 
+<!-- Основной чат -->
 <div id="app" class="app hidden">
-    <div class="chats-panel">
+    <div class="sidebar">
         <div class="user-info">
-            <h3 id="currentUserName"></h3>
-            <p>Вы в сети</p>
+            <h3 id="currentUserName">Загрузка...</h3>
+            <p id="currentUserDisplay"></p>
         </div>
-        <div class="rooms-section">
-            <h4>📁 ЧАТЫ</h4>
-            <div id="roomsList"></div>
-            <button class="create-room" onclick="showCreateRoomModal()">+ Создать чат</button>
+        <div class="groups-section">
+            <h4>📁 ГРУППЫ</h4>
+            <div id="groupsList"></div>
+            <button class="create-group" onclick="showCreateGroupModal()">+ Создать группу</button>
+        </div>
+        <div class="online-users">
+            <h4>🟢 ОНЛАЙН</h4>
+            <ul id="onlineList"></ul>
         </div>
     </div>
     
     <div class="chat-panel">
         <div class="chat-header">
-            <h2 id="currentRoomName">Загрузка...</h2>
+            <h2 id="currentRoomName">Выберите группу</h2>
         </div>
-        <div id="messagesContainer" class="messages"></div>
+        <div id="messagesContainer" class="messages">
+            <div style="color:#8e9eae; text-align:center; padding:20px;">Выберите группу слева</div>
+        </div>
         <div class="input-area">
-            <input type="text" id="messageInput" placeholder="Напишите сообщение...">
-            <button onclick="sendMessage()">Отправить</button>
+            <input type="text" id="messageInput" placeholder="Напишите сообщение..." disabled>
+            <button id="sendBtn" onclick="sendMessage()" disabled>Отправить</button>
         </div>
     </div>
 </div>
@@ -289,85 +386,191 @@ body {
 <script>
 const socket = io();
 let currentUser = null;
-let currentRoomId = 'general';
-let roomsList = {};
+let currentRoomId = null;
+let groups = {};
 
-function joinChat() {
-    const username = document.getElementById('usernameInput').value.trim();
-    if (!username) return alert('Введите имя');
+// ============ АУТЕНТИФИКАЦИЯ ============
+let isLoginMode = true;
+
+document.getElementById('authSwitch').onclick = () => {
+    isLoginMode = !isLoginMode;
+    const title = document.getElementById('authTitle');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    const displayNameField = document.getElementById('authDisplayName');
     
-    currentUser = username;
-    socket.emit('user join', { username, roomId: 'general' });
+    if (isLoginMode) {
+        title.textContent = 'Вход';
+        submitBtn.textContent = 'Войти';
+        displayNameField.style.display = 'none';
+        document.getElementById('authSwitch').textContent = 'Нет аккаунта? Зарегистрироваться';
+    } else {
+        title.textContent = 'Регистрация';
+        submitBtn.textContent = 'Зарегистрироваться';
+        displayNameField.style.display = 'block';
+        document.getElementById('authSwitch').textContent = 'Уже есть аккаунт? Войти';
+    }
+    document.getElementById('authError').textContent = '';
+};
+
+document.getElementById('authSubmitBtn').onclick = async () => {
+    const username = document.getElementById('authUsername').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const displayName = document.getElementById('authDisplayName').value.trim();
     
-    document.getElementById('loginModal').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    document.getElementById('currentUserName').textContent = username;
-}
+    if (!username || !password) {
+        document.getElementById('authError').textContent = 'Заполните все поля';
+        return;
+    }
+    
+    const endpoint = isLoginMode ? '/api/login' : '/api/register';
+    const body = isLoginMode ? { username, password } : { username, password, displayName };
+    
+    try {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        
+        if (data.error) {
+            document.getElementById('authError').textContent = data.error;
+        } else {
+            currentUser = data.user;
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            document.getElementById('currentUserName').textContent = currentUser.displayName || currentUser.username;
+            document.getElementById('currentUserDisplay').textContent = `@${currentUser.username}`;
+            
+            socket.emit('auth', {
+                userId: currentUser.id,
+                username: currentUser.username,
+                displayName: currentUser.displayName || currentUser.username
+            });
+        }
+    } catch (err) {
+        document.getElementById('authError').textContent = 'Ошибка соединения';
+    }
+};
+
+// ============ SOCKET СОБЫТИЯ ============
+
+socket.on('rooms list', (rooms) => {
+    groups = {};
+    const container = document.getElementById('groupsList');
+    container.innerHTML = '';
+    
+    rooms.forEach(room => {
+        groups[room.id] = room;
+        const div = document.createElement('div');
+        div.className = `group-item ${room.id === currentRoomId ? 'active' : ''}`;
+        div.innerHTML = `
+            <div style="flex:1">
+                <div class="group-name">${escapeHtml(room.name)}</div>
+                <div class="group-members">${room.membersCount} участников</div>
+            </div>
+            ${room.creatorId === currentUser?.id ? `<button class="delete-group" onclick="deleteGroup('${room.id}', event)">🗑️</button>` : ''}
+        `;
+        div.onclick = (e) => {
+            if (e.target.classList.contains('delete-group')) return;
+            switchRoom(room.id);
+        };
+        container.appendChild(div);
+    });
+    
+    if (rooms.length === 0) {
+        container.innerHTML = '<div style="color:#8e9eae; padding:10px;">Нет групп. Создайте первую!</div>';
+    }
+});
+
+socket.on('group created', (room) => {
+    // Обновляем список
+    socket.emit('join room', { roomId: room.id, userId: currentUser.id });
+    currentRoomId = room.id;
+    document.getElementById('messageInput').disabled = false;
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('currentRoomName').textContent = room.name;
+});
+
+socket.on('group deleted', (roomId) => {
+    if (currentRoomId === roomId) {
+        currentRoomId = null;
+        document.getElementById('messagesContainer').innerHTML = '<div style="color:#8e9eae; text-align:center; padding:20px;">Группа удалена</div>';
+        document.getElementById('messageInput').disabled = true;
+        document.getElementById('sendBtn').disabled = true;
+        document.getElementById('currentRoomName').textContent = 'Выберите группу';
+    }
+});
 
 socket.on('chat history', (messages) => {
     const container = document.getElementById('messagesContainer');
     container.innerHTML = '';
-    messages.forEach(msg => addMessage(msg.user, msg.text, msg.user === currentUser, msg.time));
+    messages.forEach(msg => addMessage(msg.username, msg.text, msg.userId === currentUser?.id, msg.time));
+    container.scrollTop = container.scrollHeight;
 });
 
-socket.on('chat message', (msg) => {
-    if (msg.user !== currentUser) {
-        addMessage(msg.user, msg.text, false, msg.time);
-    }
+socket.on('new message', (msg) => {
+    addMessage(msg.username, msg.text, msg.userId === currentUser?.id, msg.time);
 });
 
 socket.on('system message', (data) => {
     addSystemMessage(data.text);
 });
 
-socket.on('room list', (rooms) => {
-    roomsList = {};
-    const container = document.getElementById('roomsList');
+socket.on('online users', (users) => {
+    const container = document.getElementById('onlineList');
     container.innerHTML = '';
-    
-    rooms.forEach(room => {
-        roomsList[room.id] = room.name;
-        const div = document.createElement('div');
-        div.className = `room-item ${room.id === currentRoomId ? 'active' : ''}`;
-        div.innerHTML = `
-            <span class="room-name">${escapeHtml(room.name)}</span>
-            <span class="room-members">${room.members}</span>
-        `;
-        div.onclick = () => switchRoom(room.id);
-        container.appendChild(div);
+    users.forEach(user => {
+        const li = document.createElement('li');
+        li.textContent = user.displayName || user.username;
+        container.appendChild(li);
     });
 });
 
-socket.on('room created', (data) => {
-    switchRoom(data.roomId);
+socket.on('error', (msg) => {
+    alert(msg);
 });
 
 function switchRoom(roomId) {
     if (roomId === currentRoomId) return;
     currentRoomId = roomId;
-    socket.emit('switch room', roomId);
-    document.getElementById('currentRoomName').textContent = roomsList[roomId] || 'Чат';
-    document.getElementById('messagesContainer').innerHTML = '';
+    socket.emit('join room', { roomId, userId: currentUser.id });
+    document.getElementById('currentRoomName').textContent = groups[roomId]?.name || 'Чат';
+    document.getElementById('messageInput').disabled = false;
+    document.getElementById('sendBtn').disabled = false;
+    
+    document.querySelectorAll('.group-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.querySelector('.group-name')?.textContent === groups[roomId]?.name) {
+            item.classList.add('active');
+        }
+    });
 }
 
 function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
-    if (!text) return;
+    if (!text || !currentRoomId) return;
     
-    socket.emit('chat message', { text });
-    addMessage(currentUser, text, true, new Date().toLocaleTimeString());
+    socket.emit('send message', {
+        roomId: currentRoomId,
+        text: text,
+        userId: currentUser.id,
+        username: currentUser.displayName || currentUser.username
+    });
     input.value = '';
 }
 
-function addMessage(user, text, isSelf, time) {
+function addMessage(username, text, isSelf, time) {
     const container = document.getElementById('messagesContainer');
+    if (container.querySelector('.no-chat')) container.innerHTML = '';
+    
     const div = document.createElement('div');
     div.className = `message ${isSelf ? 'self' : 'other'}`;
     div.innerHTML = `
         <div class="message-header">
-            <span>${escapeHtml(user)}</span>
-            <span>${time}</span>
+            <span>${escapeHtml(username)}</span>
+            <span>${time || new Date().toLocaleTimeString()}</span>
         </div>
         <div>${escapeHtml(text)}</div>
     `;
@@ -377,6 +580,8 @@ function addMessage(user, text, isSelf, time) {
 
 function addSystemMessage(text) {
     const container = document.getElementById('messagesContainer');
+    if (container.querySelector('.no-chat')) container.innerHTML = '';
+    
     const div = document.createElement('div');
     div.className = 'message system';
     div.textContent = text;
@@ -384,10 +589,17 @@ function addSystemMessage(text) {
     container.scrollTop = container.scrollHeight;
 }
 
-function showCreateRoomModal() {
-    const name = prompt('Название чата:');
+function showCreateGroupModal() {
+    const name = prompt('Название группы:');
     if (name && name.trim()) {
-        socket.emit('create room', name.trim());
+        socket.emit('create group', { name: name.trim(), userId: currentUser.id, username: currentUser.displayName || currentUser.username });
+    }
+}
+
+function deleteGroup(roomId, event) {
+    event.stopPropagation();
+    if (confirm('Удалить эту группу? Все сообщения будут потеряны.')) {
+        socket.emit('delete group', { roomId, userId: currentUser.id });
     }
 }
 
