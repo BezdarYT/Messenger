@@ -5,112 +5,147 @@ const io = require('socket.io')(http);
 
 app.use(express.static('public'));
 
-// Храним пользователей: { socketId: { username, currentChatWith } }
-const users = {};
+// Хранилище данных
+const users = {};        // { socketId: { username, currentRoom } }
+const rooms = {          // { roomId: { name, messages, members } }
+    'general': {
+        name: 'Общий чат',
+        messages: [],
+        members: new Set()
+    }
+};
+let nextRoomId = 1;
 
 io.on('connection', (socket) => {
-    console.log('Новый пользователь подключился');
+    console.log('Пользователь подключился');
 
-    // Пользователь входит с именем
-    socket.on('user join', (username) => {
-        users[socket.id] = { 
-            username: username, 
-            currentChatWith: null,
-            socketId: socket.id
-        };
+    // Вход пользователя
+    socket.on('user join', ({ username, roomId = 'general' }) => {
+        users[socket.id] = { username, currentRoom: roomId };
         
-        // Отправляем подтверждение
-        socket.emit('joined', { username });
+        // Добавляем в комнату
+        if (!rooms[roomId]) {
+            rooms[roomId] = {
+                name: `Чат ${nextRoomId++}`,
+                messages: [],
+                members: new Set()
+            };
+        }
+        rooms[roomId].members.add(socket.id);
+        socket.join(roomId);
         
-        // Обновляем список пользователей для всех
-        updateUserList();
+        // Отправляем историю комнаты
+        socket.emit('chat history', rooms[roomId].messages);
         
-        // Системное сообщение
-        socket.broadcast.emit('system message', {
-            text: `${username} присоединился к чату`,
+        // Уведомляем всех в комнате
+        socket.to(roomId).emit('system message', {
+            text: `${username} присоединился`,
             time: new Date().toLocaleTimeString()
         });
-    });
-
-    // Начать чат с пользователем
-    socket.on('start private chat', (targetSocketId) => {
-        const user = users[socket.id];
-        const target = users[targetSocketId];
         
-        if (user && target) {
-            user.currentChatWith = targetSocketId;
-            
-            // Создаём приватную комнату для двух пользователей
-            const roomName = [socket.id, targetSocketId].sort().join('_');
-            socket.join(roomName);
-            
-            // Уведомляем, что чат начат
-            socket.emit('chat started', {
-                with: target.username,
-                withId: targetSocketId
-            });
-        }
+        // Обновляем списки
+        updateUserList();
+        updateRoomList();
     });
 
-    // Отправка приватного сообщения
-    socket.on('private message', ({ toId, text }) => {
-        const sender = users[socket.id];
-        const recipient = users[toId];
-        
-        if (sender && recipient) {
-            const roomName = [socket.id, toId].sort().join('_');
-            
-            // Отправляем сообщение в приватную комнату
-            io.to(roomName).emit('private message', {
-                from: sender.username,
-                fromId: socket.id,
-                text: text,
-                time: new Date().toLocaleTimeString(),
-                isSelf: false
-            });
-            
-            // Отправляем себе с пометкой "self"
-            socket.emit('private message', {
-                from: sender.username,
-                text: text,
-                time: new Date().toLocaleTimeString(),
-                isSelf: true
-            });
-        }
-    });
-
-    // Закрыть приватный чат
-    socket.on('close private chat', () => {
+    // Создание новой комнаты
+    socket.on('create room', (roomName) => {
         const user = users[socket.id];
         if (user) {
-            user.currentChatWith = null;
-            socket.emit('chat closed');
+            const roomId = `room_${Date.now()}`;
+            rooms[roomId] = {
+                name: roomName || `Чат ${nextRoomId++}`,
+                messages: [],
+                members: new Set([socket.id])
+            };
+            socket.join(roomId);
+            user.currentRoom = roomId;
+            
+            updateRoomList();
+            socket.emit('room created', { roomId, name: rooms[roomId].name });
         }
     });
 
-    // Отключение пользователя
+    // Переключение комнаты
+    socket.on('switch room', (roomId) => {
+        const user = users[socket.id];
+        if (user && rooms[roomId]) {
+            // Выход из старой комнаты
+            socket.leave(user.currentRoom);
+            rooms[user.currentRoom]?.members.delete(socket.id);
+            
+            // Вход в новую
+            user.currentRoom = roomId;
+            rooms[roomId].members.add(socket.id);
+            socket.join(roomId);
+            
+            // Отправляем историю новой комнаты
+            socket.emit('chat history', rooms[roomId].messages);
+            
+            // Уведомляем
+            socket.emit('system message', {
+                text: `Вы перешли в чат "${rooms[roomId].name}"`,
+                time: new Date().toLocaleTimeString()
+            });
+            
+            updateUserList();
+        }
+    });
+
+    // Отправка сообщения
+    socket.on('chat message', ({ text }) => {
+        const user = users[socket.id];
+        if (user && rooms[user.currentRoom]) {
+            const message = {
+                user: user.username,
+                text: text,
+                time: new Date().toLocaleTimeString(),
+                timestamp: Date.now()
+            };
+            rooms[user.currentRoom].messages.push(message);
+            
+            // Ограничиваем историю 100 сообщениями
+            if (rooms[user.currentRoom].messages.length > 100) {
+                rooms[user.currentRoom].messages.shift();
+            }
+            
+            io.to(user.currentRoom).emit('chat message', message);
+        }
+    });
+
+    // Отключение
     socket.on('disconnect', () => {
         const user = users[socket.id];
         if (user) {
-            socket.broadcast.emit('system message', {
+            rooms[user.currentRoom]?.members.delete(socket.id);
+            delete users[socket.id];
+            updateUserList();
+            updateRoomList();
+            
+            io.emit('system message', {
                 text: `${user.username} покинул чат`,
                 time: new Date().toLocaleTimeString()
             });
-            delete users[socket.id];
-            updateUserList();
         }
-        console.log('Пользователь отключился');
     });
     
     function updateUserList() {
-        const userList = Object.values(users).map(user => ({
-            username: user.username,
-            socketId: user.socketId
+        const list = Object.values(users).map(u => ({
+            username: u.username,
+            room: u.currentRoom
         }));
-        io.emit('user list', userList);
+        io.emit('user list', list);
+    }
+    
+    function updateRoomList() {
+        const roomList = Object.entries(rooms).map(([id, room]) => ({
+            id: id,
+            name: room.name,
+            members: room.members.size
+        }));
+        io.emit('room list', roomList);
     }
 });
 
-http.listen(3000, () => {
-    console.log('Сервер запущен на http://localhost:3000');
-});
+const PORT = process.env.PORT || 3000;
+http.listen(PORT, () => console.log(`Сервер на порту ${PORT}`));
