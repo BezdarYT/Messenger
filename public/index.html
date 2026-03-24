@@ -3,16 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Private Messenger — Личные сообщения</title>
+<title>Мессенджер | Чаты и история</title>
 <style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #0e1621;
     height: 100vh;
     display: flex;
@@ -20,9 +16,9 @@ body {
     align-items: center;
 }
 
-.chat-container {
+.app {
     width: 95%;
-    max-width: 1300px;
+    max-width: 1400px;
     height: 90vh;
     background: #17212b;
     border-radius: 12px;
@@ -31,8 +27,8 @@ body {
     box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 
-/* Боковая панель с пользователями */
-.sidebar {
+/* Левая панель - чаты */
+.chats-panel {
     width: 280px;
     background: #1f2a36;
     border-right: 1px solid #2b3b4a;
@@ -49,75 +45,75 @@ body {
 .user-info h3 {
     color: #fff;
     font-size: 16px;
-    margin-bottom: 5px;
 }
 
 .user-info p {
     color: #8e9eae;
     font-size: 12px;
+    margin-top: 5px;
 }
 
-.online-users {
+.rooms-section {
     flex: 1;
     padding: 15px;
     overflow-y: auto;
 }
 
-.online-users h4 {
+.rooms-section h4 {
     color: #8e9eae;
     font-size: 12px;
     text-transform: uppercase;
     margin-bottom: 12px;
-    letter-spacing: 1px;
 }
 
-#userList {
-    list-style: none;
-}
-
-.user-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.room-item {
     padding: 10px 12px;
     margin-bottom: 5px;
     background: #2b3b4a;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.user-item:hover {
+.room-item:hover {
     background: #3e5a6c;
-    transform: translateX(2px);
 }
 
-.user-item.active-chat {
+.room-item.active {
     background: #2b5278;
     border-left: 3px solid #65b9f2;
 }
 
-.user-name {
+.room-name {
     color: #fff;
     font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
-.user-name::before {
-    content: "●";
-    color: #4caf50;
-    font-size: 10px;
-}
-
-.user-status {
-    font-size: 11px;
+.room-members {
     color: #8e9eae;
+    font-size: 11px;
 }
 
-/* Основной чат */
-.main-chat {
+.create-room {
+    margin: 10px;
+    padding: 10px;
+    background: #2b5278;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.create-room:hover {
+    background: #3e6a8c;
+}
+
+/* Центральная панель - чат */
+.chat-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -127,46 +123,11 @@ body {
     padding: 15px 20px;
     background: #1f2a36;
     border-bottom: 1px solid #2b3b4a;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 
 .chat-header h2 {
     color: #fff;
     font-size: 18px;
-}
-
-.chat-header p {
-    color: #8e9eae;
-    font-size: 12px;
-    margin-top: 4px;
-}
-
-.close-chat {
-    background: #3e5a6c;
-    border: none;
-    color: #fff;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: background 0.2s;
-}
-
-.close-chat:hover {
-    background: #5a7a8c;
-}
-
-.no-chat {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #8e9eae;
-    font-size: 14px;
-    text-align: center;
-    padding: 20px;
 }
 
 .messages {
@@ -176,7 +137,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: #17212b;
 }
 
 .message {
@@ -184,23 +144,19 @@ body {
     padding: 8px 12px;
     border-radius: 12px;
     font-size: 14px;
-    line-height: 1.4;
     word-wrap: break-word;
-    position: relative;
 }
 
 .message.self {
     background: #2b5278;
     color: #fff;
     align-self: flex-end;
-    border-bottom-right-radius: 4px;
 }
 
 .message.other {
     background: #1f2a36;
     color: #fff;
     align-self: flex-start;
-    border-bottom-left-radius: 4px;
 }
 
 .message.system {
@@ -210,7 +166,6 @@ body {
     font-size: 12px;
     font-style: italic;
     max-width: 90%;
-    text-align: center;
 }
 
 .message-header {
@@ -220,15 +175,6 @@ body {
     display: flex;
     justify-content: space-between;
     gap: 12px;
-}
-
-.message.self .message-header {
-    color: #a0c4e5;
-}
-
-.message-time {
-    font-size: 10px;
-    opacity: 0.7;
 }
 
 .input-area {
@@ -250,15 +196,6 @@ body {
     outline: none;
 }
 
-.input-area input::placeholder {
-    color: #6c7e8f;
-}
-
-.input-area input:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
 .input-area button {
     padding: 12px 24px;
     background: #2b5278;
@@ -266,20 +203,8 @@ body {
     border-radius: 20px;
     color: #fff;
     cursor: pointer;
-    font-weight: 500;
-    transition: background 0.2s;
 }
 
-.input-area button:hover:not(:disabled) {
-    background: #3e6a8c;
-}
-
-.input-area button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Модальное окно входа */
 .modal {
     position: fixed;
     top: 0;
@@ -301,21 +226,14 @@ body {
     text-align: center;
 }
 
-.modal-content h2 {
-    color: #fff;
-    margin-bottom: 20px;
-}
-
 .modal-content input {
     width: 100%;
     padding: 12px;
+    margin: 15px 0;
     background: #1f2a36;
     border: 1px solid #2b3b4a;
     border-radius: 8px;
     color: #fff;
-    font-size: 14px;
-    margin-bottom: 15px;
-    outline: none;
 }
 
 .modal-content button {
@@ -325,12 +243,7 @@ body {
     border: none;
     border-radius: 8px;
     color: #fff;
-    font-size: 16px;
     cursor: pointer;
-}
-
-.modal-content button:hover {
-    background: #3e6a8c;
 }
 
 .hidden {
@@ -342,41 +255,32 @@ body {
 <div id="loginModal" class="modal">
     <div class="modal-content">
         <h2>💬 Вход в мессенджер</h2>
-        <input type="text" id="usernameInput" placeholder="Введите ваше имя" maxlength="20">
+        <input type="text" id="usernameInput" placeholder="Ваше имя">
         <button onclick="joinChat()">Войти</button>
     </div>
 </div>
 
-<div id="app" class="chat-container hidden">
-    <!-- Боковая панель -->
-    <div class="sidebar">
+<div id="app" class="app hidden">
+    <div class="chats-panel">
         <div class="user-info">
-            <h3 id="currentUserName">Загрузка...</h3>
-            <p>Вы онлайн</p>
+            <h3 id="currentUserName"></h3>
+            <p>Вы в сети</p>
         </div>
-        <div class="online-users">
-            <h4>📱 Пользователи онлайн</h4>
-            <ul id="userList"></ul>
+        <div class="rooms-section">
+            <h4>📁 ЧАТЫ</h4>
+            <div id="roomsList"></div>
+            <button class="create-room" onclick="showCreateRoomModal()">+ Создать чат</button>
         </div>
     </div>
-
-    <!-- Основной чат -->
-    <div class="main-chat">
+    
+    <div class="chat-panel">
         <div class="chat-header">
-            <div>
-                <h2 id="chatWithName">💬 Личные сообщения</h2>
-                <p id="chatStatus">Выберите собеседника из списка слева</p>
-            </div>
-            <button id="closeChatBtn" class="close-chat hidden" onclick="closeCurrentChat()">✕ Закрыть чат</button>
+            <h2 id="currentRoomName">Загрузка...</h2>
         </div>
-        <div id="messagesContainer" class="messages">
-            <div class="no-chat">
-                👈 Нажмите на пользователя слева,<br>чтобы начать приватный чат
-            </div>
-        </div>
+        <div id="messagesContainer" class="messages"></div>
         <div class="input-area">
-            <input type="text" id="messageInput" placeholder="Напишите сообщение..." disabled>
-            <button id="sendBtn" onclick="sendPrivateMessage()" disabled>Отправить</button>
+            <input type="text" id="messageInput" placeholder="Напишите сообщение...">
+            <button onclick="sendMessage()">Отправить</button>
         </div>
     </div>
 </div>
@@ -385,215 +289,110 @@ body {
 <script>
 const socket = io();
 let currentUser = null;
-let currentChatWith = null; // { socketId, username }
-let usersList = {};
+let currentRoomId = 'general';
+let roomsList = {};
 
-// Вход в чат
 function joinChat() {
     const username = document.getElementById('usernameInput').value.trim();
-    if (!username) {
-        alert('Введите имя');
-        return;
-    }
+    if (!username) return alert('Введите имя');
     
     currentUser = username;
-    socket.emit('user join', username);
+    socket.emit('user join', { username, roomId: 'general' });
     
     document.getElementById('loginModal').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('currentUserName').textContent = username;
 }
 
-// Обновление списка пользователей
-socket.on('user list', (users) => {
-    usersList = {};
-    const userListElement = document.getElementById('userList');
-    userListElement.innerHTML = '';
-    
-    users.forEach(user => {
-        if (user.username !== currentUser) {
-            usersList[user.socketId] = user.username;
-            const li = document.createElement('li');
-            li.className = 'user-item';
-            if (currentChatWith && currentChatWith.socketId === user.socketId) {
-                li.classList.add('active-chat');
-            }
-            li.innerHTML = `
-                <span class="user-name">${escapeHtml(user.username)}</span>
-                <span class="user-status">нажми для чата</span>
-            `;
-            li.onclick = () => startPrivateChat(user.socketId, user.username);
-            userListElement.appendChild(li);
-        }
-    });
-    
-    if (Object.keys(usersList).length === 0) {
-        userListElement.innerHTML = '<div style="color:#8e9eae; padding:10px;">Нет других пользователей онлайн</div>';
+socket.on('chat history', (messages) => {
+    const container = document.getElementById('messagesContainer');
+    container.innerHTML = '';
+    messages.forEach(msg => addMessage(msg.user, msg.text, msg.user === currentUser, msg.time));
+});
+
+socket.on('chat message', (msg) => {
+    if (msg.user !== currentUser) {
+        addMessage(msg.user, msg.text, false, msg.time);
     }
 });
 
-// Системные сообщения
 socket.on('system message', (data) => {
     addSystemMessage(data.text);
 });
 
-// Начать приватный чат
-function startPrivateChat(socketId, username) {
-    if (currentChatWith && currentChatWith.socketId === socketId) return;
+socket.on('room list', (rooms) => {
+    roomsList = {};
+    const container = document.getElementById('roomsList');
+    container.innerHTML = '';
     
-    currentChatWith = { socketId, username };
-    socket.emit('start private chat', socketId);
-    
-    // Обновляем UI
-    document.getElementById('chatWithName').textContent = `💬 Чат с ${escapeHtml(username)}`;
-    document.getElementById('chatStatus').textContent = 'Приватный чат';
-    document.getElementById('closeChatBtn').classList.remove('hidden');
-    document.getElementById('messageInput').disabled = false;
-    document.getElementById('sendBtn').disabled = false;
-    document.getElementById('messageInput').placeholder = `Напишите сообщение для ${escapeHtml(username)}...`;
-    
-    // Очищаем сообщения и показываем старые (в этой версии история не хранится)
-    const messagesContainer = document.getElementById('messagesContainer');
-    messagesContainer.innerHTML = '';
-    addSystemMessage(`Начат приватный чат с ${escapeHtml(username)}`);
-    
-    // Подсвечиваем активный чат в списке
-    document.querySelectorAll('.user-item').forEach(item => {
-        item.classList.remove('active-chat');
-        if (item.querySelector('.user-name').textContent === username) {
-            item.classList.add('active-chat');
-        }
+    rooms.forEach(room => {
+        roomsList[room.id] = room.name;
+        const div = document.createElement('div');
+        div.className = `room-item ${room.id === currentRoomId ? 'active' : ''}`;
+        div.innerHTML = `
+            <span class="room-name">${escapeHtml(room.name)}</span>
+            <span class="room-members">${room.members}</span>
+        `;
+        div.onclick = () => switchRoom(room.id);
+        container.appendChild(div);
     });
+});
+
+socket.on('room created', (data) => {
+    switchRoom(data.roomId);
+});
+
+function switchRoom(roomId) {
+    if (roomId === currentRoomId) return;
+    currentRoomId = roomId;
+    socket.emit('switch room', roomId);
+    document.getElementById('currentRoomName').textContent = roomsList[roomId] || 'Чат';
+    document.getElementById('messagesContainer').innerHTML = '';
 }
 
-// Отправить приватное сообщение
-function sendPrivateMessage() {
+function sendMessage() {
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
+    if (!text) return;
     
-    if (!text || !currentChatWith) return;
-    
-    socket.emit('private message', {
-        toId: currentChatWith.socketId,
-        text: text
-    });
-    
+    socket.emit('chat message', { text });
+    addMessage(currentUser, text, true, new Date().toLocaleTimeString());
     input.value = '';
-    input.focus();
 }
 
-// Получение приватного сообщения
-socket.on('private message', (data) => {
-    if (data.isSelf) {
-        // Своё сообщение
-        addMessage(data.text, true, data.time);
-    } else {
-        // Чужое сообщение — проверяем, открыт ли чат с этим пользователем
-        if (currentChatWith && currentChatWith.socketId === data.fromId) {
-            addMessage(data.text, false, data.time, data.from);
-        } else {
-            // Сообщение от пользователя, с которым нет открытого чата
-            addSystemMessage(`📨 Новое сообщение от ${escapeHtml(data.from)}: "${data.text}"`);
-            
-            // Подсвечиваем пользователя в списке
-            const userItem = Array.from(document.querySelectorAll('.user-item')).find(
-                item => item.querySelector('.user-name').textContent === data.from
-            );
-            if (userItem) {
-                userItem.style.animation = 'pulse 0.5s';
-                setTimeout(() => {
-                    userItem.style.animation = '';
-                }, 500);
-            }
-        }
-    }
-});
-
-// Чат начат (подтверждение)
-socket.on('chat started', (data) => {
-    // Уже обработано в startPrivateChat
-});
-
-// Закрыть текущий чат
-function closeCurrentChat() {
-    if (currentChatWith) {
-        socket.emit('close private chat');
-        currentChatWith = null;
-        
-        document.getElementById('chatWithName').textContent = '💬 Личные сообщения';
-        document.getElementById('chatStatus').textContent = 'Выберите собеседника из списка слева';
-        document.getElementById('closeChatBtn').classList.add('hidden');
-        document.getElementById('messageInput').disabled = true;
-        document.getElementById('sendBtn').disabled = true;
-        document.getElementById('messageInput').placeholder = 'Выберите собеседника...';
-        
-        const messagesContainer = document.getElementById('messagesContainer');
-        messagesContainer.innerHTML = '<div class="no-chat">👈 Нажмите на пользователя слева,<br>чтобы начать приватный чат</div>';
-        
-        // Убираем подсветку
-        document.querySelectorAll('.user-item').forEach(item => {
-            item.classList.remove('active-chat');
-        });
-    }
+function addMessage(user, text, isSelf, time) {
+    const container = document.getElementById('messagesContainer');
+    const div = document.createElement('div');
+    div.className = `message ${isSelf ? 'self' : 'other'}`;
+    div.innerHTML = `
+        <div class="message-header">
+            <span>${escapeHtml(user)}</span>
+            <span>${time}</span>
+        </div>
+        <div>${escapeHtml(text)}</div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
 }
 
-// Добавить сообщение в чат
-function addMessage(text, isSelf, time, fromName = null) {
-    const messagesContainer = document.getElementById('messagesContainer');
-    
-    // Убираем заглушку если есть
-    if (messagesContainer.querySelector('.no-chat')) {
-        messagesContainer.innerHTML = '';
-    }
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isSelf ? 'self' : 'other'}`;
-    
-    const header = document.createElement('div');
-    header.className = 'message-header';
-    if (!isSelf && fromName) {
-        header.innerHTML = `<span>${escapeHtml(fromName)}</span><span class="message-time">${time}</span>`;
-    } else {
-        header.innerHTML = `<span>${isSelf ? 'Вы' : escapeHtml(fromName || '')}</span><span class="message-time">${time}</span>`;
-    }
-    
-    const content = document.createElement('div');
-    content.textContent = text;
-    
-    messageDiv.appendChild(header);
-    messageDiv.appendChild(content);
-    messagesContainer.appendChild(messageDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-// Добавить системное сообщение
 function addSystemMessage(text) {
-    const messagesContainer = document.getElementById('messagesContainer');
-    
-    if (messagesContainer.querySelector('.no-chat')) {
-        messagesContainer.innerHTML = '';
-    }
-    
-    const systemDiv = document.createElement('div');
-    systemDiv.className = 'message system';
-    systemDiv.textContent = text;
-    messagesContainer.appendChild(systemDiv);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    const container = document.getElementById('messagesContainer');
+    const div = document.createElement('div');
+    div.className = 'message system';
+    div.textContent = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
 }
 
-// Отправка по Enter
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && document.getElementById('messageInput') === document.activeElement) {
-        sendPrivateMessage();
-        e.preventDefault();
+function showCreateRoomModal() {
+    const name = prompt('Название чата:');
+    if (name && name.trim()) {
+        socket.emit('create room', name.trim());
     }
-});
+}
 
-// Эскейп для закрытия чата
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && currentChatWith) {
-        closeCurrentChat();
-    }
+document.getElementById('messageInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendMessage();
 });
 
 function escapeHtml(str) {
@@ -605,16 +404,6 @@ function escapeHtml(str) {
         return m;
     });
 }
-
-// Добавляем анимацию
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes pulse {
-        0% { background: #2b5278; }
-        100% { background: #3e5a6c; }
-    }
-`;
-document.head.appendChild(style);
 </script>
 </body>
 </html>
