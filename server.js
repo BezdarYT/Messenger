@@ -4,175 +4,306 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
 app.use(express.static('public'));
+app.use(express.json());
 
-// Хранилище данных
-const users = {};        // { socketId: { username, currentRoom } }
-const rooms = {          // { roomId: { name, messages, members } }
-    'general': {
-        name: 'Общий чат',
-        messages: [],
-        members: new Set()
+// ============ Хранилища данных ============
+const users = new Map();        // userId -> { username, password, displayName, createdAt }
+const sessions = new Map();     // socketId -> { userId, username, currentRoomId }
+let nextUserId = 1;
+
+const rooms = new Map();        // roomId -> { id, name, creatorId, createdAt, members: Set, messages: [] }
+let nextRoomId = 1;
+
+// Создаём общий чат по умолчанию
+rooms.set('1', {
+    id: '1',
+    name: 'Общий чат',
+    creatorId: null,
+    creatorName: 'system',
+    createdAt: Date.now(),
+    members: new Set(),
+    messages: []
+});
+
+// ============ API ============
+
+// Регистрация
+app.post('/api/register', (req, res) => {
+    const { username, password, displayName } = req.body;
+    
+    // Проверяем, существует ли пользователь
+    for (const user of users.values()) {
+        if (user.username === username) {
+            return res.status(400).json({ error: 'Юзернейм уже занят' });
+        }
     }
-};
+    
+    const userId = String(nextUserId++);
+    users.set(userId, {
+        id: userId,
+        username: username,
+        password: password,
+        displayName: displayName || username,
+        createdAt: Date.now()
+    });
+    
+    res.json({ success: true, user: { id: userId, username, displayName: displayName || username } });
+});
+
+// Вход
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    
+    for (const user of users.values()) {
+        if (user.username === username && user.password === password) {
+            return res.json({ 
+                success: true, 
+                user: { id: user.id, username: user.username, displayName: user.displayName } 
+            });
+        }
+    }
+    
+    res.status(401).json({ error: 'Неверный логин или пароль' });
+});
+
+// Получить комнаты пользователя
+app.get('/api/rooms/:userId', (req, res) => {
+    const userRooms = [];
+    for (const room of rooms.values()) {
+        if (room.members.has(req.params.userId)) {
+            userRooms.push({
+                id: room.id,
+                name: room.name,
+                creatorId: room.creatorId,
+                creatorName: room.creatorName,
+                membersCount: room.members.size,
+                messagesCount: room.messages.length
+            });
+        }
+    }
+    res.json(userRooms);
+});
+
+// ============ SOCKET.IO ============
 
 io.on('connection', (socket) => {
     console.log('Пользователь подключился');
 
-    // Вход пользователя
-    socket.on('user join', ({ username, roomId = 'general' }) => {
-        users[socket.id] = { username, currentRoom: roomId };
+    // Аутентификация
+    socket.on('auth', ({ userId, username, displayName }) => {
+        sessions.set(socket.id, { userId, username, displayName, currentRoomId: null });
         
-        // Добавляем в комнату
-        if (!rooms[roomId]) {
-            rooms[roomId] = {
-                name: 'Новый чат',
-                messages: [],
-                members: new Set()
-            };
+        // Находим комнаты пользователя
+        const userRooms = [];
+        for (const room of rooms.values()) {
+            if (room.members.has(userId)) {
+                userRooms.push({
+                    id: room.id,
+                    name: room.name,
+                    creatorId: room.creatorId,
+                    creatorName: room.creatorName,
+                    membersCount: room.members.size
+                });
+            }
         }
-        rooms[roomId].members.add(socket.id);
-        socket.join(roomId);
         
-        // Отправляем историю комнаты
-        socket.emit('chat history', rooms[roomId].messages);
+        socket.emit('rooms list', userRooms);
         
-        // Уведомляем всех в комнате
-        socket.to(roomId).emit('system message', {
-            text: `${username} присоединился`,
+        // Если есть комнаты, заходим в первую
+        if (userRooms.length > 0) {
+            const firstRoom = userRooms[0];
+            const session = sessions.get(socket.id);
+            session.currentRoomId = firstRoom.id;
+            socket.join(`room_${firstRoom.id}`);
+            
+            // Отправляем историю
+            const room = rooms.get(firstRoom.id);
+            socket.emit('chat history', room.messages);
+        }
+        
+        updateOnlineList();
+    });
+
+    // Создание группы
+    socket.on('create group', ({ name, userId, username }) => {
+        const roomId = String(nextRoomId++);
+        
+        rooms.set(roomId, {
+            id: roomId,
+            name: name || `Чат ${roomId}`,
+            creatorId: userId,
+            creatorName: username,
+            createdAt: Date.now(),
+            members: new Set([userId]),
+            messages: []
+        });
+        
+        // Добавляем пользователя в комнату
+        const session = sessions.get(socket.id);
+        if (session) {
+            if (session.currentRoomId) {
+                socket.leave(`room_${session.currentRoomId}`);
+            }
+            session.currentRoomId = roomId;
+            socket.join(`room_${roomId}`);
+        }
+        
+        // Отправляем историю (пустую)
+        socket.emit('chat history', []);
+        
+        const newRoom = {
+            id: roomId,
+            name: name || `Чат ${roomId}`,
+            creatorId: userId,
+            creatorName: username,
+            membersCount: 1
+        };
+        
+        // Уведомляем всех о новой группе
+        io.emit('group created', newRoom);
+        
+        socket.emit('system message', {
+            text: `✅ Вы создали чат "${newRoom.name}"`,
             time: new Date().toLocaleTimeString()
         });
         
-        // Обновляем списки
-        updateUserList();
+        updateOnlineList();
+    });
+
+    // Удаление группы (только создатель)
+    socket.on('delete group', ({ roomId, userId }) => {
+        const room = rooms.get(roomId);
+        if (!room) return;
+        
+        // Проверяем, создатель ли
+        if (room.creatorId !== userId) {
+            socket.emit('error', '❌ Только создатель может удалить чат');
+            return;
+        }
+        
+        // Удаляем комнату
+        rooms.delete(roomId);
+        
+        // Уведомляем всех
+        io.emit('group deleted', roomId);
+        
+        // Перенаправляем пользователей, которые были в этой комнате
+        for (const [sockId, session] of sessions) {
+            if (session.currentRoomId === roomId) {
+                const defaultRoom = rooms.get('1');
+                if (defaultRoom) {
+                    session.currentRoomId = '1';
+                    const sock = io.sockets.sockets.get(sockId);
+                    if (sock) {
+                        sock.leave(`room_${roomId}`);
+                        sock.join(`room_1`);
+                        sock.emit('chat history', defaultRoom.messages);
+                        sock.emit('system message', {
+                            text: `📁 Чат "${room.name}" был удалён, вы перемещены в общий чат`,
+                            time: new Date().toLocaleTimeString()
+                        });
+                    }
+                }
+            }
+        }
+        
+        updateOnlineList();
+    });
+
+    // Присоединение к комнате
+    socket.on('join room', ({ roomId, userId }) => {
+        const session = sessions.get(socket.id);
+        if (!session) return;
+        
+        const room = rooms.get(roomId);
+        if (!room) return;
+        
+        // Добавляем пользователя в комнату, если его там нет
+        if (!room.members.has(userId)) {
+            room.members.add(userId);
+        }
+        
+        // Покидаем старую комнату
+        if (session.currentRoomId) {
+            socket.leave(`room_${session.currentRoomId}`);
+        }
+        
+        session.currentRoomId = roomId;
+        socket.join(`room_${roomId}`);
+        
+        // Отправляем историю
+        socket.emit('chat history', room.messages);
+        
+        socket.emit('system message', {
+            text: `📁 Вы перешли в чат "${room.name}"`,
+            time: new Date().toLocaleTimeString()
+        });
+        
+        updateOnlineList();
         updateRoomList();
     });
 
-    // СОЗДАНИЕ НОВОЙ КОМНАТЫ (ВОТ ЭТО БЫЛО ПРОПУЩЕНО!)
-    socket.on('create room', (roomName) => {
-        const user = users[socket.id];
-        if (user) {
-            const roomId = `room_${Date.now()}`;
-            rooms[roomId] = {
-                name: roomName || `Чат ${Object.keys(rooms).length}`,
-                messages: [],
-                members: new Set([socket.id])
-            };
-            
-            // Выходим из старой комнаты
-            const oldRoom = user.currentRoom;
-            if (oldRoom && rooms[oldRoom]) {
-                rooms[oldRoom].members.delete(socket.id);
-                socket.leave(oldRoom);
-            }
-            
-            // Входим в новую
-            user.currentRoom = roomId;
-            socket.join(roomId);
-            
-            // Отправляем историю (пустую)
-            socket.emit('chat history', []);
-            
-            // Уведомление о создании
-            socket.emit('system message', {
-                text: `Вы создали чат "${rooms[roomId].name}"`,
-                time: new Date().toLocaleTimeString()
-            });
-            
-            // Обновляем списки для всех
-            updateRoomList();
-            updateUserList();
-            
-            // Отправляем событие о создании комнаты
-            socket.emit('room created', { roomId, name: rooms[roomId].name });
-        }
-    });
-
-    // Переключение комнаты
-    socket.on('switch room', (roomId) => {
-        const user = users[socket.id];
-        if (user && rooms[roomId]) {
-            // Выход из старой комнаты
-            if (user.currentRoom && rooms[user.currentRoom]) {
-                rooms[user.currentRoom].members.delete(socket.id);
-                socket.leave(user.currentRoom);
-            }
-            
-            // Вход в новую
-            user.currentRoom = roomId;
-            rooms[roomId].members.add(socket.id);
-            socket.join(roomId);
-            
-            // Отправляем историю новой комнаты
-            socket.emit('chat history', rooms[roomId].messages);
-            
-            // Уведомление
-            socket.emit('system message', {
-                text: `Вы перешли в чат "${rooms[roomId].name}"`,
-                time: new Date().toLocaleTimeString()
-            });
-            
-            updateUserList();
-            updateRoomList();
-        }
-    });
-
     // Отправка сообщения
-    socket.on('chat message', ({ text }) => {
-        const user = users[socket.id];
-        if (user && rooms[user.currentRoom]) {
-            const message = {
-                user: user.username,
-                text: text,
-                time: new Date().toLocaleTimeString(),
-                timestamp: Date.now()
-            };
-            rooms[user.currentRoom].messages.push(message);
-            
-            // Ограничиваем историю 100 сообщениями
-            if (rooms[user.currentRoom].messages.length > 100) {
-                rooms[user.currentRoom].messages.shift();
-            }
-            
-            io.to(user.currentRoom).emit('chat message', message);
+    socket.on('send message', ({ roomId, text, userId, username }) => {
+        const room = rooms.get(roomId);
+        if (!room) return;
+        
+        const message = {
+            id: Date.now(),
+            userId: userId,
+            username: username,
+            text: text,
+            time: new Date().toLocaleTimeString(),
+            timestamp: Date.now()
+        };
+        
+        room.messages.push(message);
+        
+        // Ограничиваем историю 200 сообщениями
+        if (room.messages.length > 200) {
+            room.messages.shift();
         }
+        
+        // Отправляем всем в комнате
+        io.to(`room_${roomId}`).emit('new message', message);
     });
 
     // Отключение
     socket.on('disconnect', () => {
-        const user = users[socket.id];
-        if (user) {
-            if (user.currentRoom && rooms[user.currentRoom]) {
-                rooms[user.currentRoom].members.delete(socket.id);
-            }
-            delete users[socket.id];
-            updateUserList();
-            updateRoomList();
-            
-            io.emit('system message', {
-                text: `${user.username} покинул чат`,
-                time: new Date().toLocaleTimeString()
-            });
-        }
+        sessions.delete(socket.id);
+        updateOnlineList();
         console.log('Пользователь отключился');
     });
     
-    function updateUserList() {
-        const list = Object.values(users).map(u => ({
-            username: u.username,
-            room: u.currentRoom
-        }));
-        io.emit('user list', list);
+    function updateOnlineList() {
+        const online = [];
+        for (const session of sessions.values()) {
+            const room = rooms.get(session.currentRoomId);
+            online.push({
+                userId: session.userId,
+                username: session.username,
+                displayName: session.displayName,
+                roomId: session.currentRoomId,
+                roomName: room?.name || 'Неизвестно'
+            });
+        }
+        io.emit('online users', online);
     }
     
     function updateRoomList() {
-        const roomList = Object.entries(rooms).map(([id, room]) => ({
-            id: id,
-            name: room.name,
-            members: room.members.size
-        }));
-        io.emit('room list', roomList);
+        const roomList = [];
+        for (const room of rooms.values()) {
+            roomList.push({
+                id: room.id,
+                name: room.name,
+                creatorId: room.creatorId,
+                creatorName: room.creatorName,
+                membersCount: room.members.size
+            });
+        }
+        io.emit('rooms list update', roomList);
     }
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
+http.listen(PORT, () => console.log(`Сервер на порту ${PORT}`));
