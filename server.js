@@ -14,7 +14,6 @@ const rooms = {          // { roomId: { name, messages, members } }
         members: new Set()
     }
 };
-let nextRoomId = 1;
 
 io.on('connection', (socket) => {
     console.log('Пользователь подключился');
@@ -26,7 +25,7 @@ io.on('connection', (socket) => {
         // Добавляем в комнату
         if (!rooms[roomId]) {
             rooms[roomId] = {
-                name: `Чат ${nextRoomId++}`,
+                name: 'Новый чат',
                 messages: [],
                 members: new Set()
             };
@@ -48,20 +47,42 @@ io.on('connection', (socket) => {
         updateRoomList();
     });
 
-    // Создание новой комнаты
+    // СОЗДАНИЕ НОВОЙ КОМНАТЫ (ВОТ ЭТО БЫЛО ПРОПУЩЕНО!)
     socket.on('create room', (roomName) => {
         const user = users[socket.id];
         if (user) {
             const roomId = `room_${Date.now()}`;
             rooms[roomId] = {
-                name: roomName || `Чат ${nextRoomId++}`,
+                name: roomName || `Чат ${Object.keys(rooms).length}`,
                 messages: [],
                 members: new Set([socket.id])
             };
-            socket.join(roomId);
-            user.currentRoom = roomId;
             
+            // Выходим из старой комнаты
+            const oldRoom = user.currentRoom;
+            if (oldRoom && rooms[oldRoom]) {
+                rooms[oldRoom].members.delete(socket.id);
+                socket.leave(oldRoom);
+            }
+            
+            // Входим в новую
+            user.currentRoom = roomId;
+            socket.join(roomId);
+            
+            // Отправляем историю (пустую)
+            socket.emit('chat history', []);
+            
+            // Уведомление о создании
+            socket.emit('system message', {
+                text: `Вы создали чат "${rooms[roomId].name}"`,
+                time: new Date().toLocaleTimeString()
+            });
+            
+            // Обновляем списки для всех
             updateRoomList();
+            updateUserList();
+            
+            // Отправляем событие о создании комнаты
             socket.emit('room created', { roomId, name: rooms[roomId].name });
         }
     });
@@ -71,8 +92,10 @@ io.on('connection', (socket) => {
         const user = users[socket.id];
         if (user && rooms[roomId]) {
             // Выход из старой комнаты
-            socket.leave(user.currentRoom);
-            rooms[user.currentRoom]?.members.delete(socket.id);
+            if (user.currentRoom && rooms[user.currentRoom]) {
+                rooms[user.currentRoom].members.delete(socket.id);
+                socket.leave(user.currentRoom);
+            }
             
             // Вход в новую
             user.currentRoom = roomId;
@@ -82,13 +105,14 @@ io.on('connection', (socket) => {
             // Отправляем историю новой комнаты
             socket.emit('chat history', rooms[roomId].messages);
             
-            // Уведомляем
+            // Уведомление
             socket.emit('system message', {
                 text: `Вы перешли в чат "${rooms[roomId].name}"`,
                 time: new Date().toLocaleTimeString()
             });
             
             updateUserList();
+            updateRoomList();
         }
     });
 
@@ -117,7 +141,9 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const user = users[socket.id];
         if (user) {
-            rooms[user.currentRoom]?.members.delete(socket.id);
+            if (user.currentRoom && rooms[user.currentRoom]) {
+                rooms[user.currentRoom].members.delete(socket.id);
+            }
             delete users[socket.id];
             updateUserList();
             updateRoomList();
@@ -127,6 +153,7 @@ io.on('connection', (socket) => {
                 time: new Date().toLocaleTimeString()
             });
         }
+        console.log('Пользователь отключился');
     });
     
     function updateUserList() {
@@ -148,4 +175,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Сервер на порту ${PORT}`));
+http.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
